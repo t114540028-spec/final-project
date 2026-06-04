@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Capybara Tower 🐾</title>
+  <meta name="description" content="Stack adorable capybaras as high as you can! A cozy kawaii stacking game with physics." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%; height: 100%;
+    }
+
+    :root {
+      --caramel: #c07c3a;
+      --brown-dark: #5a3010;
+      --orange: #e8842a;
+    }
+
+    body {
+      background: radial-gradient(ellipse at 30% 20%, #fce8b0 0%, #f5d07a 45%, #e8b840 100%);
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      font-family: 'Nunito', sans-serif;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+
+    .bg-deco {
+      position: fixed; pointer-events: none; z-index: 0;
+      font-size: 2.1rem; opacity: 0.2;
+      animation: floatDeco var(--dur, 6s) ease-in-out infinite;
+    }
+    @keyframes floatDeco {
+      0%,100% { transform: translateY(0) rotate(0deg); }
+      50%      { transform: translateY(-18px) rotate(12deg); }
+    }
+
+    #game-wrap {
+      position: relative; z-index: 1;
+      width: 100%; height: 100dvh;
+      display: flex; flex-direction: column;
+      align-items: center;
+    }
+
+    /* ── Header ── */
+    #header {
+      display: flex; align-items: center; justify-content: space-between;
+      width: 100%; max-width: 700px;
+      padding: 10px 18px; flex-shrink: 0;
+      background: rgba(255,255,255,0.62);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border-radius: 0 0 22px 22px;
+      border: 2.5px solid rgba(255,200,100,0.5);
+      border-top: none;
+      box-shadow: 0 4px 24px rgba(160,80,0,0.14), inset 0 1px 0 rgba(255,255,255,0.8);
+    }
+    #header h1 { font-size: 1rem; font-weight: 900; color: var(--brown-dark); line-height: 1.25; }
+    .hdr-stat { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+    .hdr-label { font-size: 0.52rem; color: #b08030; font-weight: 800; text-transform: uppercase; letter-spacing: 1.2px; }
+    .hdr-val { font-size: 1.55rem; font-weight: 900; color: var(--caramel); line-height: 1; }
+    .hdr-val.pop { animation: popAnim 0.22s ease; }
+    @keyframes popAnim {
+      0%  { transform: scale(1); }
+      50% { transform: scale(1.5); color: var(--orange); }
+      100%{ transform: scale(1); }
+    }
+    #best-val { font-size: 1.1rem; font-weight: 900; color: var(--orange); }
+
+    /* ── Canvas ── */
+    #canvas-wrap {
+      position: relative;
+      width: 100%; max-width: 700px;
+      flex: 1; min-height: 0;
+      overflow: hidden;
+      box-shadow: 0 10px 48px rgba(130,60,0,0.28), 0 2px 8px rgba(0,0,0,0.1);
+    }
+    #canvas { display: block; cursor: pointer; width: 100%; height: 100%; }
+
+    /* ── Overlays ── */
+    .overlay {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 12px; padding: 28px 24px;
+      text-align: center;
+    }
+    #start-screen { background: linear-gradient(160deg,rgba(255,241,195,0.97) 0%,rgba(255,215,120,0.97) 100%); }
+    #gameover-screen { background: linear-gradient(160deg,rgba(255,235,190,0.97) 0%,rgba(255,208,130,0.97) 100%); display: none; }
+    .overlay h2 { font-size: 2.4rem; font-weight: 900; color: var(--brown-dark); text-shadow: 0 3px 0 rgba(255,255,255,0.5); line-height: 1.15; }
+    .overlay p { font-size: 0.9rem; color: var(--caramel); font-weight: 700; line-height: 1.55; }
+    .emoji-big { font-size: 5rem; animation: bounce 0.8s ease-in-out infinite alternate; display: block; }
+    @keyframes bounce { from { transform: translateY(0) scale(1); } to { transform: translateY(-14px) scale(1.05); } }
+
+    .btn {
+      background: linear-gradient(135deg, #ffb347 0%, #e67e22 100%);
+      color: #fff; border: none; border-radius: 50px; padding: 13px 40px;
+      font-family: 'Nunito', sans-serif; font-size: 1.05rem; font-weight: 900;
+      cursor: pointer; letter-spacing: 0.5px;
+      box-shadow: 0 5px 18px rgba(230,126,34,0.5), 0 2px 0 rgba(0,0,0,0.1);
+      transition: transform 0.12s, box-shadow 0.12s;
+      position: relative; overflow: hidden;
+    }
+    .btn::after { content:''; position:absolute; top:3px; left:6px; right:6px; height:40%; border-radius:50px 50px 0 0; background:rgba(255,255,255,0.28); }
+    .btn:hover { transform: translateY(-3px) scale(1.05); box-shadow: 0 8px 28px rgba(230,126,34,0.6); }
+    .btn:active { transform: translateY(1px) scale(0.97); }
+
+    .final-count { font-size: 4rem; font-weight: 900; color: var(--caramel); line-height: 1; }
+    .final-pts { font-size: 1rem; font-weight: 800; color: var(--orange); }
+    #best-msg { color: var(--orange); font-size: 0.95rem; font-weight: 800; }
+
+    /* ── DOM Particles ── */
+    .particle {
+      position: absolute; pointer-events: none;
+      animation: particleFly 0.9s ease-out forwards; z-index: 30;
+    }
+    @keyframes particleFly {
+      0%   { opacity:1; transform: translate(0,0) scale(1) rotate(0deg); }
+      100% { opacity:0; transform: translate(var(--tx),var(--ty)) scale(0.2) rotate(var(--tr)); }
+    }
+
+    /* ── Combo Badge ── */
+    #combo-badge {
+      position: absolute; top: 12px; right: 12px;
+      background: linear-gradient(135deg,#ff6b35,#e74c3c);
+      color: #fff; border-radius: 50px; padding: 5px 16px;
+      font-weight: 900; font-size: 0.86rem; display: none; z-index: 20;
+      box-shadow: 0 4px 14px rgba(231,76,60,0.45);
+      animation: comboPop 0.35s ease;
+    }
+    @keyframes comboPop {
+      0%  { transform: scale(0.4) rotate(-15deg); }
+      70% { transform: scale(1.25) rotate(5deg); }
+      100%{ transform: scale(1); }
+    }
+
+    /* ── Perfect Flash ── */
+    #perfect-flash {
+      position: absolute; top: 48%; left: 50%;
+      transform: translate(-50%,-50%);
+      font-size: 2.2rem; font-weight: 900; color: #ff9800;
+      text-shadow: 0 3px 0 rgba(255,255,255,0.55), 0 0 22px rgba(255,180,0,0.75);
+      pointer-events: none; display: none; z-index: 25; white-space: nowrap;
+    }
+    #perfect-flash.show { display: block; animation: perfectPop 1s ease forwards; }
+    @keyframes perfectPop {
+      0%  { opacity:0; transform:translate(-50%,-50%) scale(0.5); }
+      20% { opacity:1; transform:translate(-50%,-62%) scale(1.15); }
+      80% { opacity:1; transform:translate(-50%,-75%) scale(1); }
+      100%{ opacity:0; transform:translate(-50%,-90%) scale(0.8); }
+    }
+
+    /* ── Tap Hint ── */
+    #tap-hint {
+      position: absolute; bottom: 10px; left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.78rem; color: rgba(255,255,255,0.85); font-weight: 800;
+      pointer-events: none; z-index: 5;
+      animation: pulse 1.6s ease-in-out infinite; letter-spacing: 0.3px;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    }
+    @keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:0.95} }
+  </style>
+</head>
+<body>
+
+<div class="bg-deco" style="top:4%;left:2%;--dur:5.5s">🌿</div>
+<div class="bg-deco" style="top:12%;right:3%;--dur:7s;animation-delay:-1s">🍊</div>
+<div class="bg-deco" style="top:50%;left:1.5%;--dur:6.5s;animation-delay:-2s">🌸</div>
+<div class="bg-deco" style="bottom:8%;right:2.5%;--dur:8s;animation-delay:-0.5s">🌾</div>
+<div class="bg-deco" style="bottom:22%;left:4%;--dur:5s;animation-delay:-3s">🌼</div>
+<div class="bg-deco" style="top:38%;right:1.5%;--dur:6s;animation-delay:-1.5s">🍃</div>
+<div class="bg-deco" style="top:68%;right:4%;--dur:7.5s;animation-delay:-2.5s">🌻</div>
+
+<div id="game-wrap">
+  <div id="header">
+    <h1>🐾 Capybara<br>Tower</h1>
+    <div class="hdr-stat">
+      <span class="hdr-label">🐾 Stacked</span>
+      <div class="hdr-val" id="score-display">0</div>
+    </div>
+    <div class="hdr-stat">
+      <span class="hdr-label">⭐ Points</span>
+      <div class="hdr-val" id="pts-display" style="font-size:1.2rem">0</div>
+    </div>
+    <div class="hdr-stat">
+      <span class="hdr-label">🏆 Best</span>
+      <div id="best-val">0</div>
+    </div>
+  </div>
+
+  <div id="canvas-wrap">
+    <canvas id="canvas"></canvas>
+    <div id="combo-badge">🔥 Combo x<span id="combo-num">2</span></div>
+    <div id="perfect-flash">✨ PERFECT! +3</div>
+    <div id="tap-hint">👆 Tap or press Space to drop!</div>
+
+    <div class="overlay" id="start-screen">
+      <span class="emoji-big">🐾</span>
+      <h2>Capybara<br>Tower!</h2>
+      <p>Stack cute capybaras as high as possible!<br>
+         Tap to drop each one at the right moment.<br>
+         🍊 Orange capybara = Bonus points!<br>
+         ✨ Perfect center landing = +3 bonus!</p>
+      <button class="btn" id="start-btn">Let's Stack! 🌿</button>
+    </div>
+
+    <div class="overlay" id="gameover-screen">
+      <span class="emoji-big">😢</span>
+      <h2>Uh Oh!</h2>
+      <p>A capybara tumbled off!</p>
+      <div class="final-count"><span id="final-count">0</span></div>
+      <p style="margin-top:-6px;font-size:0.88rem">capybaras stacked!</p>
+      <div class="final-pts">⭐ <span id="final-score">0</span> total points</div>
+      <p id="best-msg"></p>
+      <button class="btn" id="restart-btn">Try Again! 🐾</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// =====================================================================
+//  CAPYBARA TOWER — Full Physics Game Engine v2
+// =====================================================================
+'use strict';
+
+// ── Size canvas to fill available space BEFORE reading W/H ────────────
+const canvas = document.getElementById('canvas');
+const ctx    = canvas.getContext('2d');
+
+// Script is at body-end, so layout has been computed. Read header height.
+(function sizeCanvas() {
+  const hdr = document.getElementById('header');
+  const hdrH = hdr ? hdr.getBoundingClientRect().height : 60;
+  canvas.width  = Math.min(window.innerWidth, 700);
+  canvas.height = Math.max(window.innerHeight - hdrH, 400);
+  // Also size the canvas-wrap to match
+  const wrap = document.getElementById('canvas-wrap');
+  if (wrap) {
+    wrap.style.height = canvas.height + 'px';
+  }
+})();
+
+let W = canvas.width;
+let H = canvas.height;
+
+
+// ── DOM ───────────────────────────────────────────────────────────────
+const scoreDisplay   = document.getElementById('score-display');
+const ptsDisplay     = document.getElementById('pts-display');
+const bestVal        = document.getElementById('best-val');
+const startScreen    = document.getElementById('start-screen');
+const gameoverScreen = document.getElementById('gameover-screen');
+const finalCountEl   = document.getElementById('final-count');
+const finalScoreEl   = document.getElementById('final-score');
+const bestMsgEl      = document.getElementById('best-msg');
+const comboBadge     = document.getElementById('combo-badge');
+const comboNumEl     = document.getElementById('combo-num');
+const perfectFlash   = document.getElementById('perfect-flash');
+const canvasWrap     = document.getElementById('canvas-wrap');
+
+// ── Images ────────────────────────────────────────────────────────────
+const imgLazy   = new Image(); imgLazy.src   = 'capybara_lazy.png';
+const imgOrange = new Image(); imgOrange.src = 'capybara_orange.png';
+const imgGrass  = new Image(); imgGrass.src  = 'grass_platform.png';
+
+// ── Constants (all derived from W and H for responsive scaling) ────────
+// Capybara size: roughly 23% of canvas width, aspect ratio ~0.55
+const CAPY_W = Math.round(Math.min(W * 0.23, 110));
+const CAPY_H = Math.round(CAPY_W * 0.65);
+
+// The grass_platform.png grass top is at ~30% of image height.
+// PLATFORM_Y = Y of the grass landing surface on screen.
+const PLAT_IMG_W    = Math.round(Math.min(W * 0.64, 280));
+const PLAT_IMG_H    = Math.round(PLAT_IMG_W * 0.46);
+const PLAT_TOP_FRAC = 0.30;
+const PLATFORM_Y    = H - Math.round(H * 0.10);  // 90% down the canvas
+
+// Capybara image padding (whitespace fraction around the body in the PNG).
+// The visual body occupies from PAD_TOP to (1-PAD_BOT) of image height.
+// surfY formula: new capy visual-bottom aligns with surface visual-top.
+//   surfY(platform) = PLATFORM_Y + CAPY_H * PAD_BOT
+//   surfY(stacked)  = top.y + top.h * (PAD_TOP + PAD_BOT)
+const CAPY_IMG_PAD_TOP = 0.0;  // fraction of image above visual body
+const CAPY_IMG_PAD_BOT = 0.0;  // fraction of image below visual body
+
+const BASE_SPEED    = Math.min(3.5, W * 0.008);
+const SPEED_INC     = 0.12;
+const MAX_SPEED     = Math.min(14, W * 0.032);
+const SPECIAL_CHANCE = 0.40;
+const SPECIAL_BONUS  = 3;
+const OVERHANG_LIMIT = 0.52;
+const GRAVITY        = 0.65;
+const BOUNCE_DAMP    = 0.28;
+const SWING_Y        = Math.round(H * 0.10);  // swinging row Y
+const SCROLL_THRESH  = H * 0.35;
+
+
+// ── Persistent best ────────────────────────────────────────────────────
+let best    = parseInt(localStorage.getItem('capyBest')    || '0');
+let bestPts = parseInt(localStorage.getItem('capyBestPts') || '0');
+
+// ── Game state ─────────────────────────────────────────────────────────
+// All positions are in SCREEN COORDINATES.
+// On scroll, we shift every stack item's y by the scroll amount.
+let state      = 'idle';
+let score      = 0;
+let capyCount  = 0;
+let stack      = [];    // { x, y, w, h, special, expr, wobble, wobbleDir, wobbleT }
+let swinger    = null;  // capybara swinging at top
+let swingX     = -CAPY_W;
+let swingDir   = 1;
+let swingSpeed = BASE_SPEED;
+let falling    = null;  // capybara falling (physics)
+let platformY  = PLATFORM_Y;  // current platform Y (shifts on scroll)
+let frameId    = null;
+let combo      = 0;
+let floatTexts = [];
+let shakeFrames= 0, shakeMag = 0;
+
+// ── Animated clouds ────────────────────────────────────────────────────
+const clouds = [
+  { x: 55,  y: 78,  s: 0.65, spd: 0.18 },
+  { x: 275, y: 46,  s: 0.45, spd: 0.12 },
+  { x: 175, y: 130, s: 0.35, spd: 0.21 },
+];
+
+// ── Web Audio ──────────────────────────────────────────────────────────
+let audioCtx = null;
+function audio() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+  }
+  return audioCtx;
+}
+function tone(freq, type='sine', dur=0.12, vol=0.18, freqFrom=null) {
+  const ac = audio(); if (!ac) return;
+  const o  = ac.createOscillator();
+  const g  = ac.createGain();
+  o.connect(g); g.connect(ac.destination);
+  o.type = type;
+  if (freqFrom) {
+    o.frequency.setValueAtTime(freqFrom, ac.currentTime);
+    o.frequency.exponentialRampToValueAtTime(freq, ac.currentTime + dur);
+  } else {
+    o.frequency.setValueAtTime(freq, ac.currentTime);
+  }
+  g.gain.setValueAtTime(vol, ac.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + dur);
+  o.start(ac.currentTime); o.stop(ac.currentTime + dur);
+}
+const sfx = {
+  drop:     () => tone(360, 'sine', 0.08, 0.12, 500),
+  land:     () => { tone(220,'triangle',0.18,0.16); tone(340,'sine',0.1,0.07); },
+  perfect:  () => { tone(660,'sine',0.1,0.2); setTimeout(()=>tone(880,'sine',0.14,0.18),90); },
+  special:  () => { tone(520,'sine',0.08,0.2); setTimeout(()=>tone(660,'sine',0.1,0.18),80); setTimeout(()=>tone(784,'sine',0.15,0.15),175); },
+  gameover: () => { tone(280,'sawtooth',0.14,0.2); setTimeout(()=>tone(200,'sawtooth',0.2,0.2),140); },
+};
+
+// ── Utility ────────────────────────────────────────────────────────────
+function rng(a, b) { return a + Math.random() * (b - a); }
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+// ── Score ──────────────────────────────────────────────────────────────
+function updateScore(pts, count) {
+  score = pts; capyCount = count;
+  scoreDisplay.textContent = capyCount;
+  ptsDisplay.textContent   = score;
+  scoreDisplay.classList.remove('pop');
+  void scoreDisplay.offsetWidth;
+  scoreDisplay.classList.add('pop');
+}
+function saveBest() {
+  if (capyCount > best) { best = capyCount; localStorage.setItem('capyBest', best); }
+  if (score > bestPts)  { bestPts = score;  localStorage.setItem('capyBestPts', bestPts); }
+  bestVal.textContent = best;
+}
+
+// ── Particles (DOM over canvas) ───────────────────────────────────────
+function spawnParticles(cx, cy, n=6, extra=false) {
+  const pool = extra
+    ? ['🍊','✨','⭐','🌟','💛','🎉']
+    : ['🌿','✨','💛','🌸','🐾','🌾'];
+  for (let i=0; i<n; i++) {
+    const el = document.createElement('div');
+    el.className = 'particle';
+    el.textContent = pool[Math.floor(Math.random()*pool.length)];
+    const tx = rng(-95, 95);
+    const ty = rng(-90, -20);
+    const tr = rng(-200, 200);
+    el.style.cssText = `left:${cx}px;top:${cy}px;font-size:${rng(1.1,1.9)}rem;
+      --tx:${tx}px;--ty:${ty}px;--tr:${tr}deg;`;
+    canvasWrap.appendChild(el);
+    setTimeout(() => el.remove(), 920);
+  }
+}
+
+// ── Combo + Perfect UI ────────────────────────────────────────────────
+let comboTimer = null;
+function showCombo(n) {
+  comboNumEl.textContent = n;
+  comboBadge.style.display = 'block';
+  comboBadge.style.animation = 'none';
+  void comboBadge.offsetWidth;
+  comboBadge.style.animation = 'comboPop 0.35s ease';
+  clearTimeout(comboTimer);
+  comboTimer = setTimeout(() => { comboBadge.style.display='none'; }, 1600);
+}
+function showPerfect() {
+  perfectFlash.className = '';
+  void perfectFlash.offsetWidth;
+  perfectFlash.className = 'show';
+}
+
+// ── Screen shake ──────────────────────────────────────────────────────
+function shake(mag=5, fr=14) { shakeMag=mag; shakeFrames=fr; }
+
+// ── Floating text ─────────────────────────────────────────────────────
+function addFloat(x, y, txt, col='#5ab84a') {
+  floatTexts.push({ x, y, txt, col, life:1 });
+}
+
+// ── Stack top surface ─────────────────────────────────────────────────
+// KEY FIX: surfY is where the new capy's visual BOTTOM should sit.
+//
+// New capy visual bottom = f.y + f.h * (1 - PAD_BOT)
+// Setting equal to surface visual top:
+//   Platform surface visual top = PLATFORM_Y
+//   → f.y + f.h*(1-PAD_BOT) = PLATFORM_Y
+//   → f.y = PLATFORM_Y - f.h*(1-PAD_BOT)
+//   → surfY = PLATFORM_Y + f.h*PAD_BOT   (since f.y = surfY - f.h)
+//
+//   Stack-top capy visual top = top.y + top.h * PAD_TOP
+//   → new capy visual bottom must equal that
+//   → f.y + f.h*(1-PAD_BOT) = top.y + top.h*PAD_TOP
+//   → surfY = f.y + f.h = top.y + top.h*PAD_TOP + f.h*PAD_BOT
+//   ≈ top.y + top.h*(PAD_TOP + PAD_BOT)   (when f.h ≈ top.h)
+function getTop() {
+  if (stack.length === 0) {
+    // First capy lands on grass: overlap 35% into the grass surface
+    const surfY = platformY + CAPY_H * 0.35;
+    return { surfY, left: W/2 - PLAT_IMG_W*0.36, right: W/2 + PLAT_IMG_W*0.36 };
+  }
+  const top = stack[stack.length-1];
+  // 35% overlap: new capy's bottom sits 35% into the top capy's height
+  const surfY = top.y + top.h * 0.35;
+  return { surfY, left: top.x, right: top.x + top.w };
+}
+
+// ── Create swinger ────────────────────────────────────────────────────
+function createSwinger() {
+  const isSpecial = Math.random() < SPECIAL_CHANCE;
+  const shrink    = Math.max(0.78, 1 - stack.length * 0.005);
+  swinger = {
+    w: CAPY_W * shrink, h: CAPY_H * shrink,
+    special: isSpecial,
+  };
+  swingX     = -swinger.w - 6;
+  swingDir   = 1;
+  swingSpeed = Math.min(MAX_SPEED, BASE_SPEED + stack.length * SPEED_INC);
+}
+
+// ── Drop swinger ──────────────────────────────────────────────────────
+function dropSwinger() {
+  if (!swinger || state !== 'playing' || falling) return;
+  sfx.drop();
+  falling = {
+    x: swingX, y: SWING_Y,
+    w: swinger.w, h: swinger.h,
+    special: swinger.special,
+    vy: 0, vr: rng(-0.013, 0.013), angle: 0,
+    bounced: 0, missed: false, dead: false,
+  };
+  swinger = null;
+}
+
+// ── Land capybara ─────────────────────────────────────────────────────
+function landCapybara(f) {
+  const { surfY, left: stackLeft, right: stackRight } = getTop();
+  const dropLeft  = f.x;
+  const dropRight = f.x + f.w;
+  const overlap   = Math.min(dropRight, stackRight) - Math.max(dropLeft, stackLeft);
+  const minOv     = f.w * (1 - OVERHANG_LIMIT);
+
+  if (overlap < minOv) {
+    // Missed — let it fall then game over
+    f.missed = true;
+    setTimeout(() => gameOver(), 420);
+    return;
+  }
+
+  sfx.land();
+  shake(2 + Math.min(4, stack.length * 0.22), 8);
+
+  // Snap to surface
+  f.y  = surfY - f.h;
+  f.vy = 0; f.vr = 0; f.angle = 0;
+  f.dead = true;
+
+  // Points
+  let pts = 1;
+  const centerDist = Math.abs((f.x + f.w/2) - (stackLeft + stackRight)/2);
+  const stackW     = stackRight - stackLeft;
+  const isPerfect  = centerDist < stackW * 0.10;
+
+  if (isPerfect)                    { pts += 3; combo++; showPerfect(); sfx.perfect(); }
+  else if (centerDist < stackW*0.25){ pts += 1; combo = Math.max(1,combo); }
+  else                              { combo = 0; }
+
+  if (f.special) { pts += SPECIAL_BONUS; sfx.special(); }
+  if (combo >= 2) showCombo(combo);
+
+  updateScore(score + pts, capyCount + 1);
+  saveBest();
+
+  // Wobble from overhang
+  const ohL = Math.max(0, stackLeft - dropLeft);
+  const ohR = Math.max(0, dropRight - stackRight);
+  const wob = (ohL + ohR) / f.w * 10;
+
+  stack.push({
+    x: f.x, y: f.y, w: f.w, h: f.h,
+    special: f.special,
+    wobble: wob, wobbleDir: Math.random()>0.5?1:-1, wobbleT: 0,
+  });
+
+  // Particles + float text
+  spawnParticles(f.x + f.w/2, f.y, f.special ? 14 : 6, f.special);
+  addFloat(f.x + f.w/2, f.y - 15,
+    isPerfect ? '✨ PERFECT +4' : (f.special ? '🍊 +4' : '+1'),
+    isPerfect ? '#ff9800' : (f.special ? '#e8842a' : '#5ab84a'));
+
+  scrollIfNeeded();
+  falling = null;
+  createSwinger();
+}
+
+// ── Camera scroll — shift stack items down so top stays visible ───────
+function scrollIfNeeded() {
+  if (stack.length === 0) return;
+  const top = stack[stack.length-1];
+  if (top.y < SCROLL_THRESH) {
+    const shift = SCROLL_THRESH - top.y + 28;
+    stack.forEach(c => c.y += shift);
+    platformY += shift;
+  }
+}
+
+// ── Game Over ─────────────────────────────────────────────────────────
+function gameOver() {
+  if (state === 'gameover') return;
+  state   = 'gameover';
+  falling = null; swinger = null;
+  sfx.gameover();
+  shake(9, 28);
+  finalCountEl.textContent = capyCount;
+  finalScoreEl.textContent  = score;
+  saveBest();
+  const nb = capyCount > 0 && capyCount >= best;
+  bestMsgEl.textContent = nb ? '🎉 New Record! Amazing!'
+    : best > 0 ? `🏆 Best: ${best} capybaras`
+    : 'Keep stacking! 💪';
+  setTimeout(() => { gameoverScreen.style.display='flex'; }, 700);
+  cancelAnimationFrame(frameId);
+}
+
+// ── Start / Restart ────────────────────────────────────────────────────
+function startGame() {
+  state      = 'playing';
+  score      = 0; capyCount = 0; combo = 0;
+  stack      = []; falling = null; swinger = null; floatTexts = [];
+  platformY  = PLATFORM_Y;
+  shakeFrames= 0; shakeMag = 0;
+
+  scoreDisplay.textContent    = '0';
+  ptsDisplay.textContent      = '0';
+  startScreen.style.display   = 'none';
+  gameoverScreen.style.display= 'none';
+  comboBadge.style.display    = 'none';
+
+  createSwinger();
+  if (frameId) cancelAnimationFrame(frameId);
+  gameLoop();
+}
+
+// =====================================================================
+//  DRAWING
+// =====================================================================
+
+// ── Draw capybara using PNG images ────────────────────────────────────
+// The image is drawn at (x, y) with size (w, h).
+// Rotation is applied around the image center.
+function drawCapy(x, y, w, h, isSpecial, angle) {
+  const img = isSpecial ? imgOrange : imgLazy;
+  ctx.save();
+  ctx.translate(x + w/2, y + h/2);
+  ctx.rotate(angle);
+  // Drop shadow (draw a soft shadow ellipse first)
+  ctx.shadowColor   = 'rgba(60,20,0,0.18)';
+  ctx.shadowBlur    = 10;
+  ctx.shadowOffsetY = 5;
+  // Use multiply so white pixels in the PNG become transparent
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.drawImage(img, -w/2, -h/2, w, h);
+  ctx.restore();
+}
+
+// ── Platform using grass_platform.png ────────────────────────────────
+// py = the visual landing surface Y (PLATFORM_Y).
+// The image is positioned so the grass top aligns with py.
+// Image top = py - PLAT_IMG_H * PLAT_TOP_FRAC
+function drawPlatform(py) {
+  const iw = PLAT_IMG_W;
+  const ih = PLAT_IMG_H;
+  const ix = W/2 - iw/2;
+  const iy = py - ih * PLAT_TOP_FRAC;   // align grass top to py
+
+  ctx.save();
+  ctx.shadowColor    = 'rgba(40,20,0,0.20)';
+  ctx.shadowBlur     = 12;
+  ctx.shadowOffsetY  = 6;
+  // multiply removes the white background of the PNG
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.drawImage(imgGrass, ix, iy, iw, ih);
+  ctx.restore();
+}
+
+// ── Cloud ─────────────────────────────────────────────────────────────
+function drawCloud(x, y, sc) {
+  ctx.save(); ctx.translate(x,y); ctx.scale(sc,sc);
+  ctx.fillStyle = 'rgba(255,255,255,0.78)';
+  ctx.beginPath();
+  ctx.arc(0,0,32,0,Math.PI*2); ctx.arc(33,-10,27,0,Math.PI*2);
+  ctx.arc(64,2,30,0,Math.PI*2); ctx.arc(32,12,24,0,Math.PI*2);
+  ctx.fill(); ctx.restore();
+}
+
+// ── Background ────────────────────────────────────────────────────────
+function drawBackground() {
+  const sky = ctx.createLinearGradient(0,0,0,H);
+  sky.addColorStop(0,'#fffbf0'); sky.addColorStop(0.55,'#fff3cc'); sky.addColorStop(1,'#ffec90');
+  ctx.fillStyle = sky; ctx.fillRect(0,0,W,H);
+
+  clouds.forEach(c => {
+    c.x += c.spd; if (c.x > W+110) c.x = -120;
+    drawCloud(c.x, c.y, c.s);
+  });
+
+  // Rolling hills
+  const hill = ctx.createLinearGradient(0,H-80,0,H);
+  hill.addColorStop(0,'#a8e878'); hill.addColorStop(1,'#68b840');
+  ctx.fillStyle = hill;
+  ctx.beginPath();
+  ctx.moveTo(0,H);
+  ctx.bezierCurveTo(W*0.15,H-52, W*0.35,H-72, W*0.5,H-56);
+  ctx.bezierCurveTo(W*0.65,H-40, W*0.82,H-64, W,H-48);
+  ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.fill();
+}
+
+// ── Swing guide line ──────────────────────────────────────────────────
+function drawGuide() {
+  if (!swinger) return;
+  const sx = swingX + swinger.w/2;
+  const sy0 = SWING_Y + swinger.h + 4;
+  const sy1 = platformY - 4;
+  if (sy1 <= sy0) return;
+  ctx.strokeStyle = 'rgba(150,90,30,0.25)'; ctx.lineWidth = 1.5;
+  ctx.setLineDash([7,7]);
+  ctx.beginPath(); ctx.moveTo(sx,sy0); ctx.lineTo(sx,sy1); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(150,90,30,0.35)';
+  ctx.beginPath(); ctx.moveTo(sx,sy1+6); ctx.lineTo(sx-5,sy1-6); ctx.lineTo(sx+5,sy1-6); ctx.closePath(); ctx.fill();
+}
+
+// ── Floating texts ────────────────────────────────────────────────────
+function tickFloatTexts() {
+  floatTexts = floatTexts.filter(t => t.life > 0);
+  floatTexts.forEach(t => {
+    t.y  -= 1.4;
+    t.life -= 0.026;
+    ctx.globalAlpha = Math.min(t.life*2,1);
+    ctx.fillStyle   = t.col;
+    ctx.font        = 'bold 17px Nunito';
+    ctx.textAlign   = 'center';
+    ctx.fillText(t.txt, t.x, t.y);
+    ctx.globalAlpha = 1;
+  });
+}
+
+// ── Main game loop ────────────────────────────────────────────────────
+function gameLoop() {
+  frameId = requestAnimationFrame(gameLoop);
+
+  let sx=0, sy=0;
+  if (shakeFrames > 0) {
+    sx = (Math.random()-0.5)*shakeMag*2;
+    sy = (Math.random()-0.5)*shakeMag;
+    shakeFrames--;
+    if (!shakeFrames) shakeMag=0;
+  }
+
+  ctx.save();
+  ctx.translate(sx, sy);
+
+  drawBackground();
+
+  // Danger zone hint
+  const dz = H*0.13;
+  ctx.strokeStyle='rgba(255,80,30,0.18)'; ctx.lineWidth=1;
+  ctx.setLineDash([12,8]);
+  ctx.beginPath(); ctx.moveTo(0,dz); ctx.lineTo(W,dz); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='rgba(255,80,30,0.25)'; ctx.font='9px Nunito'; ctx.textAlign='right';
+  ctx.fillText('🔺 Danger Zone', W-8, dz-3);
+
+  // Stacked capys
+  stack.forEach(c => {
+    c.wobbleT += 0.07;
+    c.wobble   = Math.max(0, c.wobble - 0.045);
+    const wa = Math.sin(c.wobbleT) * c.wobble * 0.018 * c.wobbleDir;
+    drawCapy(c.x, c.y, c.w, c.h, c.special, wa);
+  });
+
+  // Platform
+  drawPlatform(platformY);
+
+  // Falling capy (physics)
+  if (falling) {
+    if (!falling.dead) {
+      falling.vy += GRAVITY;
+      falling.y  += falling.vy;
+      falling.angle += falling.vr;
+
+      // Land surface
+      const { surfY, left: sl, right: sr } = getTop();
+
+      if (falling.y + falling.h >= surfY && !falling.missed) {
+        // Check overlap
+        const ov = Math.min(falling.x+falling.w, sr) - Math.max(falling.x, sl);
+        if (ov < falling.w*(1-OVERHANG_LIMIT)) {
+          falling.missed = true;
+          setTimeout(() => gameOver(), 420);
+        } else {
+          falling.y  = surfY - falling.h;
+          falling.vy = -falling.vy * BOUNCE_DAMP;
+          falling.bounced++;
+          if (falling.bounced >= 2 || Math.abs(falling.vy) < 1.0) {
+            landCapybara(falling);
+          }
+        }
+      }
+
+      // Fell off bottom
+      if (falling.y > H + 100) {
+        gameOver();
+        ctx.restore(); return;
+      }
+    }
+
+    if (!falling.dead && falling.y < H + 60) {
+      drawCapy(falling.x, falling.y, falling.w, falling.h, falling.special, falling.angle);
+    }
+  }
+
+  // Swinger
+  if (swinger && state === 'playing') {
+    swingX += swingSpeed * swingDir;
+    if (swingX + swinger.w > W+12) swingDir = -1;
+    if (swingX < -12) swingDir = 1;
+    drawGuide();
+    drawCapy(swingX, SWING_Y, swinger.w, swinger.h, swinger.special, 0);
+  }
+
+  tickFloatTexts();
+  ctx.restore();
+}
+
+// ── Input ─────────────────────────────────────────────────────────────
+function handleTap(e) {
+  e.preventDefault();
+  if (state === 'playing' && !falling) dropSwinger();
+}
+canvas.addEventListener('click',    handleTap);
+canvas.addEventListener('touchend', handleTap, { passive:false });
+
+document.getElementById('start-btn').addEventListener('click', e => { e.stopPropagation(); startGame(); });
+document.getElementById('restart-btn').addEventListener('click', e => { e.stopPropagation(); startGame(); });
+
+document.addEventListener('keydown', e => {
+  if (e.code==='Space' || e.code==='ArrowDown') {
+    e.preventDefault();
+    if (state==='playing' && !falling) dropSwinger();
+    else if (state==='idle') startGame();
+  }
+});
+
+// ── Init ──────────────────────────────────────────────────────────────
+bestVal.textContent = best;
+
+// Idle loop — draw background + platform on start screen
+(function idleLoop() {
+  if (state !== 'idle') return;
+  drawBackground();
+  drawPlatform(PLATFORM_Y);
+  // draw a decorative lazy capybara sitting on the platform
+  const dw = CAPY_W * 1.1, dh = CAPY_H * 1.1;
+  drawCapy(W/2 - dw/2, PLATFORM_Y - dh - CAPY_H * CAPY_IMG_PAD_TOP, dw, dh, false, 0);
+  requestAnimationFrame(idleLoop);
+})();
+</script>
+</body>
+</html>
